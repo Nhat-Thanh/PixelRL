@@ -8,7 +8,16 @@ import time
 import chainerrl
 import State
 import os
+import argparse
 from pixelwise_a3c import *
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--episodes", type=int, default=100, help="-")
+parser.add_argument("--batch_size", type=int, default=64, help="-")
+parser.add_argument("--snapshot_episodes", type=int, default=100, help="-")
+parser.add_argument("--test_episodes", type=int, default=100, help="-")
+
+FLAGS, unparsed = parser.parse_known_args()
 
 #_/_/_/ paths _/_/_/ 
 TRAINING_DATA_PATH          = "../training_BSD68.txt"
@@ -18,12 +27,12 @@ SAVE_PATH            = "./model/denoise_myfcn_"
  
 #_/_/_/ training parameters _/_/_/ 
 LEARNING_RATE    = 0.001
-TRAIN_BATCH_SIZE = 64
+TRAIN_BATCH_SIZE = FLAGS.batch_size 
 TEST_BATCH_SIZE  = 1 #must be 1
-N_EPISODES           = 100 
+N_EPISODES           = FLAGS.episodes 
 EPISODE_LEN = 5
-SNAPSHOT_EPISODES  = 100 
-TEST_EPISODES = 100 
+SNAPSHOT_EPISODES  = FLAGS.snapshot_episodes 
+TEST_EPISODES = FLAGS.test_episodes 
 GAMMA = 0.95 # discount factor
 
 #noise setting
@@ -85,8 +94,6 @@ def main(fout):
     model = MyFcn(N_ACTIONS)
     if os.path.exists("./model/denoise_myfcn_100/model.npz"):
         chainer.serializers.load_npz("./model/denoise_myfcn_100/model.npz", model)
-    else:
-        chainer.serializers.load_npz('./model/pretrained_15.npz', model)
 
     #_/_/_/ setup _/_/_/
     optimizer = chainer.optimizers.Adam(alpha=LEARNING_RATE)

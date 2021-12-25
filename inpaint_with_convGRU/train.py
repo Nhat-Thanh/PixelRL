@@ -11,6 +11,15 @@ import State
 import os
 from pixelwise_a3c import *
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--episodes", type=int, default=100, help="-")
+parser.add_argument("--batch_size", type=int, default=64, help="-")
+parser.add_argument("--snapshot_episodes", type=int, default=100, help="-")
+parser.add_argument("--test_episodes", type=int, default=100, help="-")
+
+FLAGS, unparsed = parser.parse_known_args()
+
+
 #_/_/_/ paths _/_/_/ 
 TRAINING_DATA_PATH          = "../training_BSD68.txt"
 TESTING_DATA_PATH           = "../testing.txt"
@@ -19,12 +28,12 @@ SAVE_PATH            = "./model/inpaint_myfcn_"
  
 #_/_/_/ training parameters _/_/_/ 
 LEARNING_RATE    = 0.001
-TRAIN_BATCH_SIZE = 64
+TRAIN_BATCH_SIZE = FLAGS.batch_size
 TEST_BATCH_SIZE  = 1 #must be 1
-N_EPISODES           = 100 
+N_EPISODES           = FLAGS.episodes 
 EPISODE_LEN = 15
-SNAPSHOT_EPISODES  = 100 
-TEST_EPISODES = 100 
+SNAPSHOT_EPISODES  = FLAGS.snapshot_episodes 
+TEST_EPISODES = FLAGS.test_episodes 
 GAMMA = 0.95 # discount factor
 EPISODE_BORDER     = 15000 #decreas the learning rate at this epoch
 
