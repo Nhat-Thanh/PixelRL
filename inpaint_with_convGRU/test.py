@@ -32,7 +32,7 @@ N_ACTIONS = 9
 MOVE_RANGE = 3
 CROP_SIZE = 70
 
-GPU_ID = 2
+GPU_ID = 0
 
 def test(loader, agent, fout):
     sum_psnr     = 0

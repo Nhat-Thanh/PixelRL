@@ -31,7 +31,7 @@ EPISODE_BORDER     = 15000 #decreas the learning rate at this epoch
 N_ACTIONS = 13
 CROP_SIZE = 70
 
-GPU_ID = 2
+GPU_ID = 0
 
 def bgr2lab_tensor_converter(src):
     b, c, h, w = src.shape
