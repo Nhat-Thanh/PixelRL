@@ -86,9 +86,10 @@ def main():
     if os.path.exists(f"{CKPT_PATH}/psnr_log.npy"):
         PSNR_LOG = np.load(f"{CKPT_PATH}/psnr_log.npy").tolist()
 
-    CUR_EPISODE = np.int32(0)
+    CUR_EPISODE = 0
     if os.path.exists(f"{CKPT_PATH}/current_episode.npy"):
         CUR_EPISODE = np.load(f"{CKPT_PATH}/current_episode.npy")
+        CUR_EPISODE = int(CUR_EPISODE)
 
     #_/_/_/ load dataset _/_/_/ 
     mini_batch_loader = MiniBatchLoader(
@@ -165,6 +166,7 @@ def main():
     REWARD_LOG = np.array(REWARD_LOG)
     PSNR_LOG = np.array(PSNR_LOG)
     CUR_EPISODE += epi
+    CUR_EPISODE = np.int32(CUR_EPISODE)
     np.save(f"{CKPT_PATH}/current_episode.npy", CUR_EPISODE)
     np.save(f"{CKPT_PATH}/reward_log.npy", REWARD_LOG)
     np.save(f"{CKPT_PATH}/psnr_log.npy", PSNR_LOG)
