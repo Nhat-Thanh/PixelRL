@@ -20,7 +20,7 @@ SAVE_PATH            = "./model/denoise_myfcn_"
 LEARNING_RATE    = 0.001
 TRAIN_BATCH_SIZE = 64
 TEST_BATCH_SIZE  = 1 #must be 1
-N_EPISODES           = 30000
+N_EPISODES           = 100 
 EPISODE_LEN = 5
 GAMMA = 0.95 # discount factor
 
@@ -90,13 +90,18 @@ def main(fout):
  
     # load myfcn model
     model = MyFcn(N_ACTIONS)
+    if os.path.exists("./model/denoise_myfcn_100/model.npz"):
+        chainer.serializers.load_npz("./model/denoise_myfcn_100/model.npz", model)
+    else:
+        chainer.serializers.load_npz('./model/pretrained_15.npz', model)
  
     #_/_/_/ setup _/_/_/
     optimizer = chainer.optimizers.Adam(alpha=LEARNING_RATE)
     optimizer.setup(model)
 
     agent = PixelWiseA3C_InnerState_ConvR(model, optimizer, EPISODE_LEN, GAMMA)
-    chainer.serializers.load_npz('./model/pretrained_15.npz', agent.model)
+    if os.path.exists("./model/denoise_myfcn_100/optimizer.npz"):
+        chainer.serializers.load_npz("./model/denoise_myfcn_100/optimizer.npz", agent.optimizer)
     agent.act_deterministically = True
     agent.model.to_gpu()
 

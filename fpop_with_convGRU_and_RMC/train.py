@@ -92,7 +92,8 @@ def main(fout):
  
     # load myfcn model
     model = MyFcn(N_ACTIONS)
- 
+    if os.path.exists("./model/fpop_myfcn_100/model.npz"):
+        serializers.load_npz('./model/fpop_myfcn_100/model.npz', model)
     #_/_/_/ setup _/_/_/
  
     #q_func = q_func.to_gpu()
@@ -104,6 +105,8 @@ def main(fout):
     #q_func.conv7.b.update_rule.hyperparam.alpha = 0.001
 
     agent = PixelWiseA3C_InnerState(model, optimizer, int(EPISODE_LEN/2), GAMMA)
+    if os.path.exists("./model/fpop_myfcn_100/optimizer.npz"):
+        serializers.load_npz('./model/fpop_myfcn_100/optimizer.npz', agent.optimizer)
     agent.act_deterministically = True
     agent.model.to_gpu()
     

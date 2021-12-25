@@ -94,13 +94,16 @@ def main(fout):
  
     # load myfcn model
     model = MyFcn(N_ACTIONS)
-    serializers.load_npz('./model/fpop_myfcn_100/model.npz', model)
+    if os.path.exists("./model/fpop_myfcn_100/model.npz"):
+        serializers.load_npz('./model/fpop_myfcn_100/model.npz', model)
  
     #_/_/_/ setup _/_/_/
  
     #q_func = q_func.to_gpu()
     #optimizer = chainer.optimizers.RMSprop(lr=LEARNING_RATE)
     optimizer = chainer.optimizers.Adam(alpha=LEARNING_RATE)
+    if os.path.exists("./model/fpop_myfcn_100/optimizer.npz"):
+        serializers.load_npz('./model/fpop_myfcn_100/optimizer.npz', agent.optimizer)
     optimizer.setup(model)
 
     #q_func.conv7.W.update_rule.hyperparam.alpha = 0.001

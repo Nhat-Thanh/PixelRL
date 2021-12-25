@@ -21,10 +21,10 @@ SAVE_PATH            = "./resultimage16bit/"
 LEARNING_RATE    = 0.001
 TRAIN_BATCH_SIZE = 64
 TEST_BATCH_SIZE  = 1 #must be 1
-N_EPISODES           = 30000
+N_EPISODES           = 100 
 EPISODE_LEN = 10
-SNAPSHOT_EPISODES  = 300
-TEST_EPISODES = 300
+SNAPSHOT_EPISODES  = 100 
+TEST_EPISODES = 100 
 GAMMA = 0.95 # discount factor
 EPISODE_BORDER     = 15000 #decreas the learning rate at this epoch
 
@@ -94,7 +94,8 @@ def main(fout):
  
     # load myfcn model
     model = MyFcn(N_ACTIONS)
- 
+    if os.path.exists("./model/fpop_myfcn_100/model.npz"):
+        serializers.load_npz('./model/fpop_myfcn_100/model.npz', model)
     #_/_/_/ setup _/_/_/
  
     #q_func = q_func.to_gpu()
@@ -106,7 +107,8 @@ def main(fout):
     #q_func.conv7.b.update_rule.hyperparam.alpha = 0.001
 
     agent = PixelWiseA3C_InnerState(model, optimizer, int(EPISODE_LEN/2), GAMMA)
-    serializers.load_npz('./model/fpop_myfcn_30000/model.npz', agent.model)
+    if os.path.exists("./model/fpop_myfcn_100/optimizer.npz"):
+        serializers.load_npz('./model/fpop_myfcn_100/optimizer.npz', agent.optimizer)
     agent.act_deterministically = True
     agent.model.to_gpu()
 
