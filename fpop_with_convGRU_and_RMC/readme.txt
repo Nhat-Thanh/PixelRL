@@ -1,0 +1,2 @@
+200model.npz is used as the initial weights except for the convGRU and last layers.
+It is the weights of the network trained 200epoch on local color enhancement (foreground pop-out) as a regression task with MSELoss.
