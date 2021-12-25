@@ -1,16 +1,17 @@
-import _pickle as pickle
 from mini_batch_loader import *
-from chainer import serializers
-from MyFCN import *
-from chainer import cuda, optimizers, Variable
-import sys
-import math
-import time
-import chainerrl
-import State
-import os
-import argparse
 from pixelwise_a3c import *
+from MyFCN import *
+import argparse
+import chainer
+import State
+import time
+import os
+# from chainer import serializers
+# import _pickle as pickle
+# from chainer import cuda, optimizers, Variable
+# import sys
+# import math
+# import chainerrl
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--episodes", type=int, default=100, help="-")
@@ -22,10 +23,10 @@ FLAGS, unparsed = parser.parse_known_args()
 
 
 #_/_/_/ paths _/_/_/ 
-TRAINING_DATA_PATH          = "./uniform_set_train_id.txt"
-TESTING_DATA_PATH           = "./uniform_set_test_id.txt"
+TRAINING_DATA_PATH          = "../uniform_set_train_id.txt"
+TESTING_DATA_PATH           = "../uniform_set_test_id.txt"
 IMAGE_DIR_PATH              = "../dataset_foregroundpopout/"
-SAVE_PATH            = "./model/fpop_myfcn_"
+SAVE_PATH            = "./checkpoint"
  
 #_/_/_/ training parameters _/_/_/ 
 LEARNING_RATE    = 0.001
@@ -36,7 +37,6 @@ EPISODE_LEN = 10
 SNAPSHOT_EPISODES  = FLAGS.snapshot_episodes 
 TEST_EPISODES = FLAGS.test_episodes 
 GAMMA = 0.95 # discount factor
-EPISODE_BORDER     = 15000 #decreas the learning rate at this epoch
 
 N_ACTIONS = 13
 CROP_SIZE = 70
@@ -51,7 +51,7 @@ def bgr2lab_tensor_converter(src):
         dst[i] = cv2.cvtColor(src_t[i], cv2.COLOR_BGR2Lab)
     return np.transpose(dst, (0,3,1,2))
 
-def test(loader, agent, fout):
+def test(loader, agent):
     sum_l2_error     = 0
     sum_reward = 0
     n_pixels = 0
@@ -61,7 +61,6 @@ def test(loader, agent, fout):
         raw_y, raw_x = loader.load_testing_data(np.array(range(i, i+TEST_BATCH_SIZE)))
         current_state.reset(raw_x)
         current_image_lab = bgr2lab_tensor_converter(current_state.image)
-        #reward = np.zeros(raw_x.shape, raw_x.dtype)
         
         for t in range(0, EPISODE_LEN):
             current_state.set(current_image_lab)
@@ -82,13 +81,26 @@ def test(loader, agent, fout):
         current_state.image = np.round(current_state.image*255)/255
         current_state.image = cv2.cvtColor(current_state.image, cv2.COLOR_BGR2Lab)
         sum_l2_error += np.sum(np.sqrt(np.sum(np.square(current_state.image-raw_y),axis=2)))/(h*w)
+    
+    total_reward = sum_reward/test_data_size
+    l2_error = sum_l2_error/test_data_size
+    print("test total reward {:0.4f}, l2_error {:0.4f}".format(total_reward, l2_error))
+    return total_reward, l2_error
  
-    print("test total reward {a}, l2_error {b}".format(a=sum_reward/test_data_size, b=sum_l2_error/test_data_size))
-    fout.write("test total reward {a}, l2_error {b}\n".format(a=sum_reward/test_data_size, b=sum_l2_error/test_data_size))
-    sys.stdout.flush()
  
- 
-def main(fout):
+def main():
+    REWARD_LOG = []
+    if os.path.exists(f"{SAVE_PATH}/reward_log.npy"):
+        REWARD_LOG = np.load(f"{SAVE_PATH}/reward_log.npy").tolist()
+
+    L2_LOG = []
+    if os.path.exists(f"{SAVE_PATH}/l2_log.npy"):
+        L2_LOG = np.load(f"{SAVE_PATH}/l2_log.npy").tolist()
+
+    CUR_EPISODE = np.int32(0)
+    if os.path.exists(f"{CKPT_PATH}/current_episode.npy"):
+        CUR_EPISODE = np.load(f"{CKPT_PATH}/current_episode.npy")
+
     #_/_/_/ load dataset _/_/_/ 
     mini_batch_loader = MiniBatchLoader(
         TRAINING_DATA_PATH, 
@@ -102,33 +114,27 @@ def main(fout):
  
     # load myfcn model
     model = MyFcn(N_ACTIONS)
-    if os.path.exists("./model/fpop_myfcn_100/model.npz"):
-        serializers.load_npz('./model/fpop_myfcn_100/model.npz', model)
+    if os.path.exists(f"{SAVE_PATH}/model.npz"):
+        chainer.serializers.load_npz(f"{SAVE_PATH}/model.npz", model)
+
     #_/_/_/ setup _/_/_/
- 
-    #q_func = q_func.to_gpu()
-    #optimizer = chainer.optimizers.RMSprop(lr=LEARNING_RATE)
     optimizer = chainer.optimizers.Adam(alpha=LEARNING_RATE)
     optimizer.setup(model)
 
-    #q_func.conv7.W.update_rule.hyperparam.alpha = 0.001
-    #q_func.conv7.b.update_rule.hyperparam.alpha = 0.001
-
     agent = PixelWiseA3C_InnerState(model, optimizer, int(EPISODE_LEN/2), GAMMA)
-    if os.path.exists("./model/fpop_myfcn_100/optimizer.npz"):
-        serializers.load_npz('./model/fpop_myfcn_100/optimizer.npz', agent.optimizer)
+    if os.path.exists(f"{SAVE_PATH}/optimizer.npz"):
+        chainer.serializers.load_npz(f"{SAVE_PATH}/optimizer.npz", agent.optimizer)
     agent.act_deterministically = True
     agent.model.to_gpu()
     
     #_/_/_/ training _/_/_/
- 
     train_data_size = MiniBatchLoader.count_paths(TRAINING_DATA_PATH)
     indices = np.random.permutation(train_data_size)
     i = 0
-    for episode in range(1, N_EPISODES+1):
+    for epi in range(1, N_EPISODES+1):
+        episode = epi + CUR_EPISODE
         print("episode %d" % episode)
-        fout.write("episode %d\n" % episode)
-        sys.stdout.flush()
+
         r = indices[i:i+TRAIN_BATCH_SIZE]
         raw_y, raw_x = mini_batch_loader.load_training_data(r)
         current_state.reset(raw_x)
@@ -147,16 +153,16 @@ def main(fout):
             sum_reward += np.mean(reward)*np.power(GAMMA,t)
 
         agent.stop_episode_and_train(current_state.tensor, reward, True)
-        print("train total reward {a}".format(a=sum_reward))
-        fout.write("train total reward {a}\n".format(a=sum_reward))
-        sys.stdout.flush()
+        print("train total reward {:0.4f}".format(sum_reward))
 
         if episode % TEST_EPISODES == 0:
             #_/_/_/ testing _/_/_/
-            test(mini_batch_loader, agent, fout)
+            total_reward, l2_error = test(mini_batch_loader, agent)            
+            REWARD_LOG.append(total_reward)
+            L2_LOG.append(l2_error)
 
         if episode % SNAPSHOT_EPISODES == 0:
-            agent.save(SAVE_PATH+str(episode))
+            agent.save(SAVE_PATH)
         
         if i+TRAIN_BATCH_SIZE >= train_data_size:
             i = 0
@@ -167,24 +173,24 @@ def main(fout):
         if i+2*TRAIN_BATCH_SIZE >= train_data_size:
             i = train_data_size - TRAIN_BATCH_SIZE
 
-        #if episode % EPISODE_BORDER == 0:
-        #    optimizer.alpha *= 0.1
         optimizer.alpha = LEARNING_RATE*((1-episode/N_EPISODES)**0.9)
- 
+    
+    REWARD_LOG = np.array(REWARD_LOG)
+    L2_LOG = np.array(L2_LOG)
+    CUR_EPISODE += epi
+    np.save(f"{CKPT_PATH}/current_episode.npy", CUR_EPISODE)
+    np.save(f"{SAVE_PATH}/reward_log.npy", REWARD_LOG)
+    np.save(f"{SAVE_PATH}/l2_log.npy", L2_LOG)
      
  
 if __name__ == '__main__':
     try:
-        fout = open('log.txt', "w")
         start = time.time()
-        main(fout)
+        main()
         end = time.time()
         print("{s}[s]".format(s=end - start))
         print("{s}[m]".format(s=(end - start)/60))
         print("{s}[h]".format(s=(end - start)/60/60))
-        fout.write("{s}[s]\n".format(s=end - start))
-        fout.write("{s}[m]\n".format(s=(end - start)/60))
-        fout.write("{s}[h]\n".format(s=(end - start)/60/60))
-        fout.close()
+
     except Exception as error:
         print(error.message)

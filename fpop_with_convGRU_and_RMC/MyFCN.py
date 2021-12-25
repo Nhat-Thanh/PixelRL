@@ -44,7 +44,7 @@ class MyFcn(chainer.Chain, a3c.A3CModel):
  
     def __init__(self, n_actions):
         w = chainer.initializers.HeNormal()
-        wI = np.zeros((1,3,33,33))
+        wI = np.zeros((3,1,33,33))
         wI[:,:,16,16] = 1
         net = MyFcn_trained()
         chainer.serializers.load_npz('./200model.npz', net)

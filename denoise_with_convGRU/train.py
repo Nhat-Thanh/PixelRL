@@ -1,15 +1,16 @@
 from mini_batch_loader import *
-from chainer import serializers
-from MyFCN import *
-from chainer import cuda, optimizers, Variable
-import sys
-import math
-import time
-import chainerrl
-import State
-import os
-import argparse
 from pixelwise_a3c import *
+from MyFCN import *
+import argparse
+import chainer
+import State
+import time
+import os
+# from chainer import serializers
+# from chainer import cuda, optimizers, Variable
+# import sys
+# import math
+# import chainerrl
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--episodes", type=int, default=100, help="-")
@@ -21,9 +22,9 @@ FLAGS, unparsed = parser.parse_known_args()
 
 #_/_/_/ paths _/_/_/ 
 TRAINING_DATA_PATH          = "../training_BSD68.txt"
-TESTING_DATA_PATH           = "../testing.txt"
+TESTING_DATA_PATH           = "../testing_BSD68.txt"
 IMAGE_DIR_PATH              = "../"
-SAVE_PATH            = "./model/denoise_myfcn_"
+CKPT_PATH            = "./checkpoint"
  
 #_/_/_/ training parameters _/_/_/ 
 LEARNING_RATE    = 0.001
@@ -45,7 +46,7 @@ CROP_SIZE = 70
 
 GPU_ID = 0
 
-def test(loader, agent, fout):
+def test(loader, agent):
     sum_psnr     = 0
     sum_reward = 0
     test_data_size = MiniBatchLoader.count_paths(TESTING_DATA_PATH)
@@ -72,13 +73,26 @@ def test(loader, agent, fout):
         I = (I*255+0.5).astype(np.uint8)
         p = (p*255+0.5).astype(np.uint8)
         sum_psnr += cv2.PSNR(p, I)
+
+    total_reward = sum_reward * 255 / test_data_size
+    total_psnr = sum_psnr / test_data_size
+    print("test total reward {:0.4f}, PSNR {:0.4f}".format(total_reward, total_psnr))
+    return total_reward, total_psnr
  
-    print("test total reward {a}, PSNR {b}".format(a=sum_reward*255/test_data_size, b=sum_psnr/test_data_size))
-    fout.write("test total reward {a}, PSNR {b}\n".format(a=sum_reward*255/test_data_size, b=sum_psnr/test_data_size))
-    sys.stdout.flush()
  
- 
-def main(fout):
+def main():
+    REWARD_LOG = []
+    if os.path.exists(f"{CKPT_PATH}/reward_log.npy"):
+        REWARD_LOG = np.load(f"{CKPT_PATH}/reward_log.npy").tolist()
+
+    PSNR_LOG = []
+    if os.path.exists(f"{CKPT_PATH}/psnr_log.npy"):
+        PSNR_LOG = np.load(f"{CKPT_PATH}/psnr_log.npy").tolist()
+
+    CUR_EPISODE = np.int32(0)
+    if os.path.exists(f"{CKPT_PATH}/current_episode.npy"):
+        CUR_EPISODE = np.load(f"{CKPT_PATH}/current_episode.npy")
+
     #_/_/_/ load dataset _/_/_/ 
     mini_batch_loader = MiniBatchLoader(
         TRAINING_DATA_PATH, 
@@ -92,29 +106,28 @@ def main(fout):
  
     # load myfcn model
     model = MyFcn(N_ACTIONS)
-    if os.path.exists("./model/denoise_myfcn_100/model.npz"):
-        chainer.serializers.load_npz("./model/denoise_myfcn_100/model.npz", model)
+    if os.path.exists("f{CKPT_PATH}/model.npz"):
+        chainer.serializers.load_npz("f{CKPT_PATH}/model.npz", model)
  
     #_/_/_/ setup _/_/_/
     optimizer = chainer.optimizers.Adam(alpha=LEARNING_RATE)
     optimizer.setup(model)
 
     agent = PixelWiseA3C_InnerState(model, optimizer, EPISODE_LEN, GAMMA)
-    if os.path.exists("./model/denoise_myfcn_100/optimizer.npz"):
-        chainer.serializers.load_npz('./model/denoise_myfcn_100/optimizer.npz', agent.optimizer)
+    if os.path.exists("f{CKPT_PATH}/optimizer.npz"):
+        chainer.serializers.load_npz("f{CKPT_PATH}/optimizer.npz", agent.optimizer)
     agent.act_deterministically = True
     agent.model.to_gpu()
     
     #_/_/_/ training _/_/_/
- 
     train_data_size = MiniBatchLoader.count_paths(TRAINING_DATA_PATH)
     indices = np.random.permutation(train_data_size)
     i = 0
-    for episode in range(1, N_EPISODES+1):
+    for epi in range(1, N_EPISODES+1):
         # display current state
+        episode = epi + CUR_EPISODE
         print("episode %d" % episode)
-        fout.write("episode %d\n" % episode)
-        sys.stdout.flush()
+
         # load images
         r = indices[i:i+TRAIN_BATCH_SIZE]
         raw_x = mini_batch_loader.load_training_data(r)
@@ -130,19 +143,20 @@ def main(fout):
             action, inner_state = agent.act_and_train(current_state.tensor, reward)
             current_state.step(action, inner_state)
             reward = np.square(raw_x - previous_image)*255 - np.square(raw_x - current_state.image)*255
-            sum_reward += np.mean(reward)*np.power(GAMMA,t)
+            sum_reward += np.mean(reward)*np.power(GAMMA, t)
 
         agent.stop_episode_and_train(current_state.tensor, reward, True)
-        print("train total reward {a}".format(a=sum_reward*255))
-        fout.write("train total reward {a}\n".format(a=sum_reward*255))
-        sys.stdout.flush()
+        print("train total reward {:0.4f}".format(sum_reward * 255))
+
 
         if episode % TEST_EPISODES == 0:
             #_/_/_/ testing _/_/_/
-            test(mini_batch_loader, agent, fout)
+            total_reward, total_psnr = test(mini_batch_loader, agent)
+            REWARD_LOG.append(total_reward)
+            PSNR_LOG.append(total_psnr)
 
         if episode % SNAPSHOT_EPISODES == 0:
-            agent.save(SAVE_PATH+str(episode))
+            agent.save(CKPT_PATH)
         
         if i+TRAIN_BATCH_SIZE >= train_data_size:
             i = 0
@@ -154,21 +168,23 @@ def main(fout):
             i = train_data_size - TRAIN_BATCH_SIZE
 
         optimizer.alpha = LEARNING_RATE*((1-episode/N_EPISODES)**0.9)
- 
+    
+    REWARD_LOG = np.array(REWARD_LOG)
+    PSNR_LOG = np.array(PSNR_LOG)
+    CUR_EPISODE += epi
+    np.save(f"{CKPT_PATH}/current_episode.npy", CUR_EPISODE)
+    np.save(f"{CKPT_PATH}/reward_log.npy", REWARD_LOG)
+    np.save(f"{CKPT_PATH}/psnr_log.npy", PSNR_LOG)
      
  
 if __name__ == '__main__':
     try:
-        fout = open('log.txt', "w")
         start = time.time()
-        main(fout)
+        main()
         end = time.time()
         print("{s}[s]".format(s=end - start))
         print("{s}[m]".format(s=(end - start)/60))
         print("{s}[h]".format(s=(end - start)/60/60))
-        fout.write("{s}[s]\n".format(s=end - start))
-        fout.write("{s}[m]\n".format(s=(end - start)/60))
-        fout.write("{s}[h]\n".format(s=(end - start)/60/60))
-        fout.close()
+
     except Exception as error:
         print(error.message)

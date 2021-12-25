@@ -12,23 +12,43 @@ from chainerrl.agents import a3c
 class MyFcn_trained(chainer.Chain, a3c.A3CModel):
  
     def __init__(self, n_actions):
+        w = chainer.initializers.HeNormal()
+        net = CaffeFunction('../initial_weight/zhang_cvpr17_denoise_15_gray.caffemodel')
         super(MyFcn_trained, self).__init__(
-            conv1=L.Convolution2D( 1, 64, 3, stride=1, pad=1, nobias=False, initialW=None, initial_bias=None),
-            diconv2=DilatedConvBlock(2, None, None),
-            diconv3=DilatedConvBlock(3, None, None),
-            diconv4=DilatedConvBlock(4, None, None),
-            diconv5_pi=DilatedConvBlock(3, None, None),
-            diconv6_pi=DilatedConvBlock(2, None, None),
-            conv7_Wz=L.Convolution2D( 64, 64, 3, stride=1, pad=1, nobias=True, initialW=None),
-            conv7_Uz=L.Convolution2D( 64, 64, 3, stride=1, pad=1, nobias=True, initialW=None),
-            conv7_Wr=L.Convolution2D( 64, 64, 3, stride=1, pad=1, nobias=True, initialW=None),
-            conv7_Ur=L.Convolution2D( 64, 64, 3, stride=1, pad=1, nobias=True, initialW=None),
-            conv7_W=L.Convolution2D( 64, 64, 3, stride=1, pad=1, nobias=True, initialW=None),
-            conv7_U=L.Convolution2D( 64, 64, 3, stride=1, pad=1, nobias=True, initialW=None),
-            conv8_pi=chainerrl.policies.SoftmaxPolicy(L.Convolution2D( 64, n_actions, 3, stride=1, pad=1, nobias=False, initialW=None)),
-            diconv5_V=DilatedConvBlock(3, None, None),
-            diconv6_V=DilatedConvBlock(2, None, None),
-            conv7_V=L.Convolution2D( 64, 1, 3, stride=1, pad=1, nobias=False, initialW=None, initial_bias=None),
+        
+            conv1=L.Convolution2D( 1, 64, 3, stride=1, pad=1, nobias=False, initialW=net.layer1.W.data, initial_bias=net.layer1.b.data),
+            diconv2=DilatedConvBlock(2, net.layer3.W.data, net.layer3.b.data),
+            diconv3=DilatedConvBlock(3, net.layer6.W.data, net.layer6.b.data),
+            diconv4=DilatedConvBlock(4, net.layer9.W.data, net.layer9.b.data),
+            diconv5_pi=DilatedConvBlock(3, net.layer12.W.data, net.layer12.b.data),
+            diconv6_pi=DilatedConvBlock(2, net.layer15.W.data, net.layer15.b.data),
+            conv7_Wz=L.Convolution2D( 64, 64, 3, stride=1, pad=1, nobias=True, initialW=w),
+            conv7_Uz=L.Convolution2D( 64, 64, 3, stride=1, pad=1, nobias=True, initialW=w),
+            conv7_Wr=L.Convolution2D( 64, 64, 3, stride=1, pad=1, nobias=True, initialW=w),
+            conv7_Ur=L.Convolution2D( 64, 64, 3, stride=1, pad=1, nobias=True, initialW=w),
+            conv7_W=L.Convolution2D( 64, 64, 3, stride=1, pad=1, nobias=True, initialW=w),
+            conv7_U=L.Convolution2D( 64, 64, 3, stride=1, pad=1, nobias=True, initialW=w),
+            conv8_pi=chainerrl.policies.SoftmaxPolicy(L.Convolution2D( 64, n_actions, 3, stride=1, pad=1, nobias=False, initialW=w)),
+            diconv5_V=DilatedConvBlock(3, net.layer12.W.data, net.layer12.b.data),
+            diconv6_V=DilatedConvBlock(2, net.layer15.W.data, net.layer15.b.data),
+            conv7_V=L.Convolution2D( 64, 1, 3, stride=1, pad=1, nobias=False, initialW=net.layer18.W.data, initial_bias=net.layer18.b.data),
+        
+            # conv1=L.Convolution2D( 1, 64, 3, stride=1, pad=1, nobias=False, initialW=None, initial_bias=None),
+            # diconv2=DilatedConvBlock(2, None, None),
+            # diconv3=DilatedConvBlock(3, None, None),
+            # diconv4=DilatedConvBlock(4, None, None),
+            # diconv5_pi=DilatedConvBlock(3, None, None),
+            # diconv6_pi=DilatedConvBlock(2, None, None),
+            # conv7_Wz=L.Convolution2D( 64, 64, 3, stride=1, pad=1, nobias=True, initialW=None),
+            # conv7_Uz=L.Convolution2D( 64, 64, 3, stride=1, pad=1, nobias=True, initialW=None),
+            # conv7_Wr=L.Convolution2D( 64, 64, 3, stride=1, pad=1, nobias=True, initialW=None),
+            # conv7_Ur=L.Convolution2D( 64, 64, 3, stride=1, pad=1, nobias=True, initialW=None),
+            # conv7_W=L.Convolution2D( 64, 64, 3, stride=1, pad=1, nobias=True, initialW=None),
+            # conv7_U=L.Convolution2D( 64, 64, 3, stride=1, pad=1, nobias=True, initialW=None),
+            # conv8_pi=chainerrl.policies.SoftmaxPolicy(L.Convolution2D( 64, n_actions, 3, stride=1, pad=1, nobias=False, initialW=None)),
+            # diconv5_V=DilatedConvBlock(3, None, None),
+            # diconv6_V=DilatedConvBlock(2, None, None),
+            # conv7_V=L.Convolution2D( 64, 1, 3, stride=1, pad=1, nobias=False, initialW=None, initial_bias=None),
         )
 
 
@@ -55,7 +75,7 @@ class MyFcn(chainer.Chain, a3c.A3CModel):
         wI = np.zeros((1,1,33,33))
         wI[:,:,16,16] = 1
         net = MyFcn_trained(n_actions)
-        chainer.serializers.load_npz('../denoise_with_convGRU/model/pretrained_15.npz', net)
+        # chainer.serializers.load_npz('../denoise_with_convGRU/model/pretrained_15.npz', net)
         super(MyFcn, self).__init__(
             conv1=L.Convolution2D( 1, 64, 3, stride=1, pad=1, nobias=False, initialW=net.conv1.W.data, initial_bias=net.conv1.b.data),
             diconv2=DilatedConvBlock(2, net.diconv2.diconv.W.data, net.diconv2.diconv.b.data),

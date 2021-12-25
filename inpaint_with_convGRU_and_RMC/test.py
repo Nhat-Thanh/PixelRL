@@ -1,32 +1,29 @@
-import _pickle as pickle
 from mini_batch_loader import *
-from chainer import serializers
-from MyFCN import *
-from chainer import cuda, optimizers, Variable
-import sys
-import math
-import time
-import chainerrl
-import State
-import os
 from pixelwise_a3c import *
+from MyFCN import *
+import chainer
+import State
+import time
+import os
+# from chainer import cuda, optimizers, Variable
+# from chainer import serializers
+# import _pickle as pickle
+# import sys
+# import math
+# import chainerrl
 
 #_/_/_/ paths _/_/_/ 
 TRAINING_DATA_PATH          = "../training_BSD68.txt"
-TESTING_DATA_PATH           = "../testing.txt"
+TESTING_DATA_PATH           = "../testing_BSD68.txt"
 IMAGE_DIR_PATH              = "../"
-SAVE_PATH            = "./resultimage/"
+CKPT_PATH = "./checkpoint"
+SAVE_PATH            = "./resultimage"
  
 #_/_/_/ training parameters _/_/_/ 
 LEARNING_RATE    = 0.001
-TRAIN_BATCH_SIZE = 64
 TEST_BATCH_SIZE  = 1 #must be 1
-N_EPISODES           = 100 
 EPISODE_LEN = 15
-SNAPSHOT_EPISODES  = 100 
-TEST_EPISODES = 100 
 GAMMA = 0.95 # discount factor
-EPISODE_BORDER     = 15000 #decreas the learning rate at this epoch
 
 N_ACTIONS = 9
 MOVE_RANGE = 3
@@ -34,7 +31,7 @@ CROP_SIZE = 70
 
 GPU_ID = 0
 
-def test(loader, agent, fout):
+def test(loader, agent):
     sum_psnr     = 0
     sum_reward = 0
     test_data_size = MiniBatchLoader.count_paths(TESTING_DATA_PATH)
@@ -61,14 +58,16 @@ def test(loader, agent, fout):
         p = (p*255+0.5).astype(np.uint8)
         sum_psnr += cv2.PSNR(p, I)
         p = np.transpose(p[0], [1,2,0])
-        cv2.imwrite(SAVE_PATH+str(i)+'.png', p)
+        
+        cv2.imwrite(f"{SAVE_PATH}/{i}.png", p)
  
-    print("test total reward {a}, PSNR {b}".format(a=sum_reward*255/test_data_size, b=sum_psnr/test_data_size))
-    fout.write("test total reward {a}, PSNR {b}\n".format(a=sum_reward*255/test_data_size, b=sum_psnr/test_data_size))
-    sys.stdout.flush()
+    total_reward = sum_reward*255/test_data_size
+    total_psnr = sum_psnr/test_data_size
+    print("test total reward {:0.4f}, PSNR {:0.4f}".format(total_reward, total_psnr))
+    return total_reward, total_psnr
  
  
-def main(fout):
+def main():
     #_/_/_/ load dataset _/_/_/ 
     mini_batch_loader = MiniBatchLoader(
         TRAINING_DATA_PATH, 
@@ -78,27 +77,18 @@ def main(fout):
  
     chainer.cuda.get_device_from_id(GPU_ID).use()
 
-    current_state = State.State((TRAIN_BATCH_SIZE,1,CROP_SIZE,CROP_SIZE), MOVE_RANGE)
-    #ra = State.RandomActor(current_state)
- 
     # load myfcn model
     model = MyFcn(N_ACTIONS)
-    if os.path.exists("./model/inpaint_myfcn_100/model.npz"):
-        serializers.load_npz('./model/inpaint_myfcn_100/model.npz', model)
+    if os.path.exists(f"{CKPT_PATH}/model.npz"):
+        chainer.serializers.load_npz(f"{CKPT_PATH}/model.npz", model)
  
     #_/_/_/ setup _/_/_/
- 
-    #q_func = q_func.to_gpu()
-    #optimizer = chainer.optimizers.RMSprop(lr=LEARNING_RATE)
     optimizer = chainer.optimizers.Adam(alpha=LEARNING_RATE)
     optimizer.setup(model)
 
-    #q_func.conv7.W.update_rule.hyperparam.alpha = 0.001
-    #q_func.conv7.b.update_rule.hyperparam.alpha = 0.001
-
     agent = PixelWiseA3C_InnerState(model, optimizer, EPISODE_LEN, GAMMA)
-    if os.path.exists("./model/inpaint_myfcn_100/optimizer.npz"):
-        serializers.load_npz('./model/inpaint_myfcn_100/optimizer.npz', agent.optimizer)
+    if os.path.exists(f"{CKPT_PATH}/optimizer.npz"):
+        chainer.serializers.load_npz(f"{CKPT_PATH}/optimizer.npz", agent.optimizer)
     agent.act_deterministically = True
     agent.model.to_gpu()
 
@@ -106,22 +96,19 @@ def main(fout):
         os.makedirs(SAVE_PATH)
 
     #_/_/_/ testing _/_/_/
-    test(mini_batch_loader, agent, fout)
+    test(mini_batch_loader, agent)
     
      
  
+ 
 if __name__ == '__main__':
     try:
-        fout = open('testlog.txt', "w")
         start = time.time()
-        main(fout)
+        main()
         end = time.time()
         print("{s}[s]".format(s=end - start))
         print("{s}[m]".format(s=(end - start)/60))
         print("{s}[h]".format(s=(end - start)/60/60))
-        fout.write("{s}[s]\n".format(s=end - start))
-        fout.write("{s}[m]\n".format(s=(end - start)/60))
-        fout.write("{s}[h]\n".format(s=(end - start)/60/60))
-        fout.close()
+        
     except Exception as error:
         print(error.message)

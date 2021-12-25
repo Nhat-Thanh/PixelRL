@@ -1,26 +1,26 @@
 from mini_batch_loader import *
-from chainer import serializers
-from MyFCN import *
-from chainer import cuda, optimizers, Variable
-import sys
-import math
-import time
-import chainerrl
-import State
-import os
 from pixelwise_a3c import *
+from MyFCN import *
+import chainer
+import State
+import time
+import os
+# from chainer import serializers
+# from chainer import cuda, optimizers, Variable
+# import sys
+# import math
+# import chainerrl
 
 #_/_/_/ paths _/_/_/ 
 TRAINING_DATA_PATH          = "../training_BSD68.txt"
-TESTING_DATA_PATH           = "../testing.txt"
+TESTING_DATA_PATH           = "../testing_BSD68.txt"
 IMAGE_DIR_PATH              = "../"
-SAVE_PATH            = "./model/denoise_myfcn_"
+CKPT_PATH = "./checkpoint"
+SAVE_PATH            = "./resultimage"
  
 #_/_/_/ training parameters _/_/_/ 
 LEARNING_RATE    = 0.001
-TRAIN_BATCH_SIZE = 64
 TEST_BATCH_SIZE  = 1 #must be 1
-N_EPISODES           = 100 
 EPISODE_LEN = 5
 GAMMA = 0.95 # discount factor
 
@@ -34,7 +34,7 @@ CROP_SIZE = 70
 
 GPU_ID = 0
 
-def test(loader, agent, fout):
+def test(loader, agent):
     sum_psnr     = 0
     sum_reward = 0
     test_data_size = MiniBatchLoader.count_paths(TESTING_DATA_PATH)
@@ -66,17 +66,19 @@ def test(loader, agent, fout):
         p = np.transpose(p,(1,2,0))
         I = np.transpose(I,(1,2,0))
         N = np.transpose(N,(1,2,0))
-        cv2.imwrite('./resultimage/'+str(i)+'_output.png',p)
-        cv2.imwrite('./resultimage/'+str(i)+'_input.png',N)
 
+        cv2.imwrite(f"{SAVE_PATH}/{i}_output.png",p)
+        cv2.imwrite(f"{SAVE_PATH}/{i}_input.png",N)
+        
         sum_psnr += cv2.PSNR(p, I)
+
+    total_reward = sum_reward*255/test_data_size
+    total_psnr = sum_psnr/test_data_size
+    print("test total reward {:0.4f}, PSNR {:0.4f}".format(total_reward, total_psnr))
+    return total_reward, total_psnr
  
-    print("test total reward {a}, PSNR {b}".format(a=sum_reward*255/test_data_size, b=sum_psnr/test_data_size))
-    fout.write("test total reward {a}, PSNR {b}\n".format(a=sum_reward*255/test_data_size, b=sum_psnr/test_data_size))
-    sys.stdout.flush()
  
- 
-def main(fout):
+def main():
     #_/_/_/ load dataset _/_/_/ 
     mini_batch_loader = MiniBatchLoader(
         TRAINING_DATA_PATH, 
@@ -86,12 +88,10 @@ def main(fout):
  
     chainer.cuda.get_device_from_id(GPU_ID).use()
 
-    current_state = State.State((TRAIN_BATCH_SIZE,1,CROP_SIZE,CROP_SIZE), MOVE_RANGE)
- 
     # load myfcn model
     model = MyFcn(N_ACTIONS)
-    if os.path.exists("./model/denoise_myfcn_100/model.npz"):
-        chainer.serializers.load_npz("./model/denoise_myfcn_100/model.npz", model)
+    if os.path.exists(f"{CKPT_PATH}/model.npz"):
+        chainer.serializers.load_npz(f"{CKPT_PATH}/model.npz", model)
     else:
         chainer.serializers.load_npz('./model/pretrained_15.npz', model)
  
@@ -100,28 +100,24 @@ def main(fout):
     optimizer.setup(model)
 
     agent = PixelWiseA3C_InnerState_ConvR(model, optimizer, EPISODE_LEN, GAMMA)
-    if os.path.exists("./model/denoise_myfcn_100/optimizer.npz"):
-        chainer.serializers.load_npz("./model/denoise_myfcn_100/optimizer.npz", agent.optimizer)
+    if os.path.exists(f"{CKPT_PATH}/optimizer.npz"):
+        chainer.serializers.load_npz(f"{CKPT_PATH}/optimizer.npz", agent.optimizer)
     agent.act_deterministically = True
     agent.model.to_gpu()
 
     #_/_/_/ testing _/_/_/
-    test(mini_batch_loader, agent, fout)
+    test(mini_batch_loader, agent)
     
      
  
 if __name__ == '__main__':
     try:
-        fout = open('testlog.txt', "w")
         start = time.time()
-        main(fout)
+        main()
         end = time.time()
         print("{s}[s]".format(s=end - start))
         print("{s}[m]".format(s=(end - start)/60))
         print("{s}[h]".format(s=(end - start)/60/60))
-        fout.write("{s}[s]\n".format(s=end - start))
-        fout.write("{s}[m]\n".format(s=(end - start)/60))
-        fout.write("{s}[h]\n".format(s=(end - start)/60/60))
-        fout.close()
+       
     except Exception as error:
         print(error.message)
