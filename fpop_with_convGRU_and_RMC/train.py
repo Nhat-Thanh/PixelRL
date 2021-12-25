@@ -136,6 +136,7 @@ def main():
     indices = np.random.permutation(train_data_size)
     i = 0
     for epi in range(1, N_EPISODES+1):
+        # display current state
         episode = epi + CUR_EPISODE
         print("episode %d" % episode)
 

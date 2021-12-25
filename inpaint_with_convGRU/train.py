@@ -124,6 +124,7 @@ def main():
     for epi in range(1, N_EPISODES+1):
         # display current state
         episode = epi + CUR_EPISODE
+        print("episode %d" % episode)
 
         r = indices[i:i+TRAIN_BATCH_SIZE]
         raw_x, raw_xt = mini_batch_loader.load_training_data(r)

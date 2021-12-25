@@ -44,7 +44,7 @@ class MyFcn(chainer.Chain, a3c.A3CModel):
  
     def __init__(self, n_actions):
         w = chainer.initializers.HeNormal()
-        wI = np.zeros((3,1,33,33))
+        wI = np.zeros((1,1,33,33))
         wI[:,:,16,16] = 1
         net = MyFcn_trained()
         chainer.serializers.load_npz('./200model.npz', net)
@@ -65,7 +65,7 @@ class MyFcn(chainer.Chain, a3c.A3CModel):
             diconv5_V=DilatedConvBlock(3, net.diconv5.diconv.W.data, net.diconv5.diconv.b.data),
             diconv6_V=DilatedConvBlock(2, net.diconv6.diconv.W.data, net.diconv6.diconv.b.data),
             conv7_V=L.Convolution2D( 64, 1, 3, stride=1, pad=1, nobias=False, initialW=w),
-            conv_R=L.Convolution2D( 1, 3, 33, stride=1, pad=16, nobias=True, initialW=wI),
+            conv_R=L.Convolution2D( 1, 1, 33, stride=1, pad=16, nobias=True, initialW=wI),
         )
         self.train = True
  

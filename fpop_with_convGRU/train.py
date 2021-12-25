@@ -26,7 +26,7 @@ FLAGS, unparsed = parser.parse_known_args()
 TRAINING_DATA_PATH          = "../uniform_set_train_id.txt"
 TESTING_DATA_PATH           = "../uniform_set_test_id.txt"
 IMAGE_DIR_PATH              = "../dataset_foregroundpopout/"
-SAVE_PATH            = "./checkpoint"
+CKPT_PATH            = "./checkpoint"
  
 #_/_/_/ training parameters _/_/_/ 
 LEARNING_RATE    = 0.001
@@ -90,12 +90,12 @@ def test(loader, agent):
  
 def main():
     REWARD_LOG = []
-    if os.path.exists(f"{SAVE_PATH}/reward_log.npy"):
-        REWARD_LOG = np.load(f"{SAVE_PATH}/reward_log.npy").tolist()
+    if os.path.exists(f"{CKPT_PATH}/reward_log.npy"):
+        REWARD_LOG = np.load(f"{CKPT_PATH}/reward_log.npy").tolist()
 
     L2_LOG = []
-    if os.path.exists(f"{SAVE_PATH}/l2_log.npy"):
-        L2_LOG = np.load(f"{SAVE_PATH}/l2_log.npy").tolist()
+    if os.path.exists(f"{CKPT_PATH}/l2_log.npy"):
+        L2_LOG = np.load(f"{CKPT_PATH}/l2_log.npy").tolist()
 
     CUR_EPISODE = np.int32(0)
     if os.path.exists(f"{CKPT_PATH}/current_episode.npy"):
@@ -114,16 +114,16 @@ def main():
  
     # load myfcn model
     model = MyFcn(N_ACTIONS)
-    if os.path.exists(f"{SAVE_PATH}/model.npz"):
-        chainer.serializers.load_npz(f"{SAVE_PATH}/model.npz", model)
+    if os.path.exists(f"{CKPT_PATH}/model.npz"):
+        chainer.serializers.load_npz(f"{CKPT_PATH}/model.npz", model)
 
     #_/_/_/ setup _/_/_/
     optimizer = chainer.optimizers.Adam(alpha=LEARNING_RATE)
     optimizer.setup(model)
 
     agent = PixelWiseA3C_InnerState(model, optimizer, int(EPISODE_LEN/2), GAMMA)
-    if os.path.exists(f"{SAVE_PATH}/optimizer.npz"):
-        chainer.serializers.load_npz(f"{SAVE_PATH}/optimizer.npz", agent.optimizer)
+    if os.path.exists(f"{CKPT_PATH}/optimizer.npz"):
+        chainer.serializers.load_npz(f"{CKPT_PATH}/optimizer.npz", agent.optimizer)
     agent.act_deterministically = True
     agent.model.to_gpu()
     
@@ -132,6 +132,7 @@ def main():
     indices = np.random.permutation(train_data_size)
     i = 0
     for epi in range(1, N_EPISODES+1):
+        # display current state
         episode = epi + CUR_EPISODE
         print("episode %d" % episode)
 
@@ -162,7 +163,7 @@ def main():
             L2_LOG.append(l2_error)
 
         if episode % SNAPSHOT_EPISODES == 0:
-            agent.save(SAVE_PATH)
+            agent.save(CKPT_PATH)
         
         if i+TRAIN_BATCH_SIZE >= train_data_size:
             i = 0
@@ -179,8 +180,8 @@ def main():
     L2_LOG = np.array(L2_LOG)
     CUR_EPISODE += epi
     np.save(f"{CKPT_PATH}/current_episode.npy", CUR_EPISODE)
-    np.save(f"{SAVE_PATH}/reward_log.npy", REWARD_LOG)
-    np.save(f"{SAVE_PATH}/l2_log.npy", L2_LOG)
+    np.save(f"{CKPT_PATH}/reward_log.npy", REWARD_LOG)
+    np.save(f"{CKPT_PATH}/l2_log.npy", L2_LOG)
      
  
 if __name__ == '__main__':
