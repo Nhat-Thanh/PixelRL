@@ -11,12 +11,16 @@ import os
 # import sys
 # import math
 # import chainerrl
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--ckpt_path", type=str, default="./checkpoint", help="-")
+FLAGS, unparsed = parser.parse_known_args()
 
 #_/_/_/ paths _/_/_/ 
 TRAINING_DATA_PATH          = "../uniform_set_train_id.txt"
 TESTING_DATA_PATH           = "../uniform_set_test_id.txt"
 IMAGE_DIR_PATH              = "../dataset_foregroundpopout/"
-CKPT_PATH = "./checkpoint"
+CKPT_PATH = FLAGS.ckpt_path
 SAVE_PATH            = "./resultimage16bit"
  
 #_/_/_/ training parameters _/_/_/ 
