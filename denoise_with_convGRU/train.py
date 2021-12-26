@@ -109,16 +109,16 @@ def main():
  
     # load myfcn model
     model = MyFcn(N_ACTIONS)
-    if os.path.exists("f{CKPT_PATH}/model.npz"):
-        chainer.serializers.load_npz("f{CKPT_PATH}/model.npz", model)
+    if os.path.exists(f"{CKPT_PATH}/model.npz"):
+        chainer.serializers.load_npz(f"{CKPT_PATH}/model.npz", model)
  
     #_/_/_/ setup _/_/_/
     optimizer = chainer.optimizers.Adam(alpha=LEARNING_RATE)
     optimizer.setup(model)
 
     agent = PixelWiseA3C_InnerState(model, optimizer, EPISODE_LEN, GAMMA)
-    if os.path.exists("f{CKPT_PATH}/optimizer.npz"):
-        chainer.serializers.load_npz("f{CKPT_PATH}/optimizer.npz", agent.optimizer)
+    if os.path.exists(f"{CKPT_PATH}/optimizer.npz"):
+        chainer.serializers.load_npz(f"{CKPT_PATH}/optimizer.npz", agent.optimizer)
     agent.act_deterministically = True
     agent.model.to_gpu()
     

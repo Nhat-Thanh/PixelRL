@@ -17,6 +17,7 @@ parser.add_argument("--episodes", type=int, default=100, help="-")
 parser.add_argument("--batch_size", type=int, default=64, help="-")
 parser.add_argument("--snapshot_episodes", type=int, default=100, help="-")
 parser.add_argument("--test_episodes", type=int, default=100, help="-")
+parser.add_argument("--ckpt_path", type=str, default="./checkpoint", help="-")
 
 FLAGS, unparsed = parser.parse_known_args()
 
@@ -24,7 +25,8 @@ FLAGS, unparsed = parser.parse_known_args()
 TRAINING_DATA_PATH          = "../training_BSD68.txt"
 TESTING_DATA_PATH           = "../testing_BSD68.txt"
 IMAGE_DIR_PATH              = "../"
-CKPT_PATH            = "./checkpoint"
+# CKPT_PATH            = "./checkpoint"
+CKPT_PATH            = FLAGS.ckpt_path
  
 #_/_/_/ training parameters _/_/_/ 
 LEARNING_RATE    = 0.001
