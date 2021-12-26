@@ -161,7 +161,8 @@ def main():
         if i+2*TRAIN_BATCH_SIZE >= train_data_size:
             i = train_data_size - TRAIN_BATCH_SIZE
 
-        optimizer.alpha = LEARNING_RATE*((1-episode/N_EPISODES)**0.9)
+        # optimizer.alpha = LEARNING_RATE*((1-episode/N_EPISODES)**0.9)
+        optimizer.alpha = LEARNING_RATE*((1-episode/10000)**0.9)
     
     REWARD_LOG = np.array(REWARD_LOG)
     PSNR_LOG = np.array(PSNR_LOG)
