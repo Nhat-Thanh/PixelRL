@@ -167,6 +167,13 @@ def main():
 
         if episode % SNAPSHOT_EPISODES == 0:
             agent.save(CKPT_PATH)
+            reward_log = np.array(REWARD_LOG)
+            ls_log = np.array(L2_LOG)
+            cur_episode = episode
+            cur_episode = np.int32(cur_episode)
+            np.save(f"{CKPT_PATH}/current_episode.npy", cur_episode)
+            np.save(f"{CKPT_PATH}/reward_log.npy", reward_log)
+            np.save(f"{CKPT_PATH}/l2_log.npy", ls_log)
         
         if i+TRAIN_BATCH_SIZE >= train_data_size:
             i = 0
