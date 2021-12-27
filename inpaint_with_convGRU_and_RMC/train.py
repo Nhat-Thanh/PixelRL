@@ -146,12 +146,6 @@ def main():
         agent.stop_episode_and_train(current_state.tensor, reward, True)
         print("train total reward {:0.4f}".format(sum_reward*255))
 
-        if episode % TEST_EPISODES == 0:
-            #_/_/_/ testing _/_/_/
-            total_reward, total_psnr = test(mini_batch_loader, agent)
-            REWARD_LOG.append(total_reward)
-            PSNR_LOG.append(total_psnr)
-
         if episode % SNAPSHOT_EPISODES == 0:
             agent.save(CKPT_PATH)
             reward_log = np.array(REWARD_LOG)
@@ -161,6 +155,12 @@ def main():
             np.save(f"{CKPT_PATH}/current_episode.npy", cur_episode)
             np.save(f"{CKPT_PATH}/reward_log.npy", reward_log)
             np.save(f"{CKPT_PATH}/psnr_log.npy", psnr_log)
+
+        if episode % TEST_EPISODES == 0:
+            #_/_/_/ testing _/_/_/
+            total_reward, total_psnr = test(mini_batch_loader, agent)
+            REWARD_LOG.append(total_reward)
+            PSNR_LOG.append(total_psnr)
         
         if i+TRAIN_BATCH_SIZE >= train_data_size:
             i = 0
